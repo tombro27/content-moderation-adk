@@ -1,0 +1,12 @@
+name: ingestion_agent
+description: >-
+  Loads and normalizes input images, checks format, resizes if needed.
+tool: tools.image_preprocessor.image_preprocessor
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  original_size: list
+  new_size: list
+  format: str
+  output_path: str

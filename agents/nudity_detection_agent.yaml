@@ -1,0 +1,10 @@
+name: nudity_detection_agent
+description: >-
+  Detects nudity or explicit content using NudeDetector and returns bounding box-level violations.
+tool: tools.nudity_detector.detect_nudity
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  violations: list
+  explanation: str

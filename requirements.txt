@@ -1,0 +1,8 @@
+# Provides extensive image processing capabilities
+Pillow
+
+# Agentic AI framework (if you're using ADK locally or simulating its structure)
+google-adk
+
+# NudeNet fork (for nudity detection)
+git+https://github.com/notAI-tech/NudeNet.git
