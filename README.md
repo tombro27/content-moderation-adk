@@ -126,6 +126,34 @@ python demo_central_pipeline.py data/test_images/blood.jpg
 python test_central_pipeline.py
 ```
 
+## 🚀 Running the Demo Scripts
+
+### Central Moderation Pipeline Demo (Single Image)
+
+To run the central moderation pipeline on a single image and see a detailed report:
+
+```bash
+python demo_central_pipeline.py [image_path]
+```
+- If no image path is provided, a default test image will be used.
+- Example:
+  ```bash
+  python demo_central_pipeline.py data/test_images/blood.jpg
+  ```
+
+### Batch Moderation Pipeline (Excel/Multiple Images)
+
+To run the pipeline on a batch of images listed in an Excel file:
+
+```bash
+python demo_xlsx_batch_pipeline.py
+```
+- The script reads image URLs/paths from the Excel file specified in the script (default: `data/test_images/dateSetContentMod.xlsx`).
+- Results, including moderation decisions and confidence scores for each agent, are saved to `data/test_images/dateSetContentMod_results.xlsx`.
+- Each output row includes columns for:
+  - `CM_ADK Decision`: Accept (A), Reject (R), or Flag (F)
+  - Confidence scores for each agent: `nudity`, `nudity_exceptions`, `violence`, `drugs`, `alcohol_smoking`, `hate`, `pii_text`, `qr_code`
+
 ## 📊 Decision Logic
 
 The system uses a priority-based decision system:
@@ -204,6 +232,28 @@ data/test_images/
         # ... all agents
     }
 }
+```
+
+## 🎯 Decision Explanation
+
+After running the pipeline, each image receives a decision:
+
+- **Accept**: ✅ Image passed all moderation checks
+- **Reject**: ❌ Image contains high-priority violations requiring immediate rejection
+- **Flag**: ⚠️ Image contains violations requiring human review
+
+Example output:
+
+```python
+print(f"\n🎯 DECISION EXPLANATION:")
+if decision == "Accept":
+    print("   ✅ Image passed all moderation checks")
+elif decision == "Reject":
+    print("   ❌ Image contains high-priority violations requiring immediate rejection")
+    if violations:
+        print(f"   🚨 Violations: {', '.join(violations)}")
+elif decision == "Flag":
+    print("   ⚠️ Image contains violations requiring human review")
 ```
 
 ## 🔧 Configuration
