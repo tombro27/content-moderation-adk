@@ -1,14 +1,15 @@
 import os
 from PIL import Image
 import google.generativeai as genai
+from google.generativeai import GenerativeModel, configure
 
 # Load API Key
 # GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "your-api-key-here")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyAmVJIpM-eQbVjyx3W0MNhzCq4tMRvwpI4")
-genai.configure(api_key=GEMINI_API_KEY)
+configure(api_key=GEMINI_API_KEY)
 
 # Load Gemini Vision model
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = GenerativeModel("gemini-2.5-pro")
 
 def analyze_image_with_prompt(image_path: str, prompt: str) -> dict:
     try:

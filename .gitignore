@@ -25,3 +25,6 @@ venv/
 central_pipeline_report_*.json
 report_*.json
 detailed_report_*.json
+
+# Ignore only batch results Excel files
+*_results.xlsx

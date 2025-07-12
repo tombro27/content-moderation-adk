@@ -389,12 +389,6 @@ def print_moderation_report(report: Dict[str, Any]) -> None:
     for agent, confidence in confidence_scores.items():
         print(f"   {agent}: {confidence:.2f}")
     
-    # Add confidence table reference
-    print("\n" + "-"*80)
-    print("📋 CONFIDENCE SCORE REFERENCE")
-    print("-"*80)
-    print(get_confidence_table_reference())
-    
     print("\n" + "="*80)
 
 def export_json_report(report: Dict[str, Any], output_path: str | None = None) -> str:
