@@ -345,6 +345,17 @@ def print_moderation_report(report: Dict[str, Any]) -> None:
         print(f"🚨 Detected Violations: {', '.join(violations)}")
     else:
         print("✅ No violations detected")
+
+    # DECISION EXPLANATION
+    print(f"\n🎯 DECISION EXPLANATION:")
+    if decision == "Accept":
+        print("   ✅ Image passed all moderation checks")
+    elif decision == "Reject":
+        print("   ❌ Image contains high-priority violations requiring immediate rejection")
+        if violations:
+            print(f"   🚨 Violations: {', '.join(violations)}")
+    elif decision == "Flag":
+        print("   ⚠️ Image contains violations requiring human review")
     
     print("\n" + "-"*80)
     print("🔍 DETAILED AGENT RESULTS")
