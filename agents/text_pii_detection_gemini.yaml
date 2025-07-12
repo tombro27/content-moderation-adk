@@ -1,0 +1,11 @@
+name: text_pii_detection_gemini
+description: >-
+  Extracts text from image using OCR and checks for PII or abuse using Gemini.
+tool: tools.text_pii_detector_gemini.detect_text_pii_with_gemini
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  prompt: str
+  response_text: str
+  extracted_text: str

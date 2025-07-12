@@ -1,0 +1,10 @@
+name: drugs_detection_gemini
+description: >-
+  Uses Gemini to detect visuals related to drugs or drug paraphernalia.
+tool: tools.drugs_detector_gemini.detect_drugs_with_gemini
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  prompt: str
+  response_text: str

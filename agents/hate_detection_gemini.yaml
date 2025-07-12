@@ -1,0 +1,10 @@
+name: hate_detection_gemini
+description: >-
+  Uses Gemini to detect hate symbols, extremist imagery, offensive gestures, or racist visuals.
+tool: tools.hate_detector_gemini.detect_hate_symbols_with_gemini
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  prompt: str
+  response_text: str

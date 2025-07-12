@@ -1,0 +1,10 @@
+name: violence_detection_gemini
+description: >-
+  Uses Gemini 1.5 Vision to analyze an image for violence, gore, weapons, or animal cruelty.
+tool: tools.violence_detection_gemini.detect_violence_with_gemini
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  prompt: str
+  response_text: str

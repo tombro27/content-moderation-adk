@@ -1,0 +1,11 @@
+name: violence_detection_agent
+description: >-
+  Detects graphic violence, weapons, or gore using an offline ResNet classifier.
+tool: tools.violence_detector.detect_violence
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  violence: bool
+  violations: list
+  explanation: str

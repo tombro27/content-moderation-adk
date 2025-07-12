@@ -1,0 +1,10 @@
+name: text_pii_vision_gemini
+description: >-
+  Uses Gemini vision-only input to detect PII, threats, or abusive text embedded in the image.
+tool: tools.text_pii_vision_gemini.detect_text_pii_with_gemini_vision
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  prompt: str
+  response_text: str

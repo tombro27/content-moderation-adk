@@ -1,0 +1,10 @@
+name: qr_detection_gemini
+description: >-
+  Uses Gemini to detect presence and location of QR codes in an image.
+tool: tools.qr_detector_gemini.detect_qr_code_with_gemini
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  prompt: str
+  response_text: str

@@ -1,0 +1,10 @@
+name: nudity_exceptions_gemini
+description: >-
+  Uses Gemini to detect nudity-related clothing exceptions such as visible underwear, lingerie, swimwear, or sportswear.
+tool: tools.nudity_exceptions_detector_gemini.detect_nudity_exceptions_with_gemini
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  prompt: str
+  response_text: str

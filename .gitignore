@@ -1,0 +1,22 @@
+venu/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+# If you use specific virtual environment names like 'env' or 'venv'
+# Otherwise, you might want to ignore all directories starting with '.', e.g.,
+# .venv/
+# .env/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDEs and other common generated files
+.vscode/        # VS Code specific settings (optional, sometimes useful to share)
+.idea/          # PyCharm/IntelliJ IDEA project files
+*.log
+*.swp

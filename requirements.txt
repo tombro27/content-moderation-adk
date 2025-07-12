@@ -6,3 +6,13 @@ google-adk
 
 # NudeNet fork (for nudity detection)
 git+https://github.com/notAI-tech/NudeNet.git
+
+#violence
+torch
+torchvision
+
+#physical violence
+google-generativeai
+
+#OCR
+pytesseract
