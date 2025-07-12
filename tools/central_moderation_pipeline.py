@@ -8,31 +8,56 @@ from tools.violence_detection_gemini import detect_violence_with_gemini
 from tools.drugs_detector_gemini import detect_drugs_with_gemini
 from tools.alcohol_smoke_detector_gemini import detect_alcohol_smoke_with_gemini
 from tools.hate_detector_gemini import detect_hate_symbols_with_gemini
-from tools.text_pii_detector_gemini import detect_text_pii_with_gemini
 from tools.text_pii_vision_gemini import detect_text_pii_with_gemini_vision
 from tools.qr_detector_gemini import detect_qr_code_with_gemini
 
 def extract_confidence_from_response(response_text: str) -> float:
-    """Extract confidence score from Gemini response text."""
+    """Enhanced confidence extraction with more sophisticated keyword analysis."""
     if not response_text:
         return 0.0
     
-    # Look for confidence indicators in the response
     response_upper = response_text.upper()
     
-    # High confidence indicators
-    if any(phrase in response_upper for phrase in ["CLEARLY", "DEFINITELY", "CERTAINLY", "OBVIOUSLY"]):
+    # More comprehensive confidence indicators
+    high_confidence = ["CLEARLY", "DEFINITELY", "CERTAINLY", "OBVIOUSLY", "UNDOUBTEDLY", "WITHOUT DOUBT", "CONFIRMED", "IDENTIFIED"]
+    medium_high = ["YES", "VIOLATION", "DETECTED", "FOUND", "PRESENT", "SHOWS", "CONTAINS", "DISPLAYS"]
+    medium = ["LIKELY", "PROBABLY", "APPEARS", "SEEMS", "INDICATES", "SUGGESTS", "MIGHT BE"]
+    medium_low = ["UNCERTAIN", "NOT CLEARLY", "MAYBE", "POSSIBLY", "MIGHT", "COULD BE", "UNSURE"]
+    low_confidence = ["NO", "NOT DETECTED", "CLEAN", "SAFE", "NONE FOUND", "ABSENT", "NOT PRESENT"]
+    
+    # Count confidence indicators
+    high_count = sum(1 for phrase in high_confidence if phrase in response_upper)
+    medium_high_count = sum(1 for phrase in medium_high if phrase in response_upper)
+    medium_count = sum(1 for phrase in medium if phrase in response_upper)
+    medium_low_count = sum(1 for phrase in medium_low if phrase in response_upper)
+    low_count = sum(1 for phrase in low_confidence if phrase in response_upper)
+    
+    # Weighted scoring with priority
+    if high_count > 0:
         return 0.9
-    elif any(phrase in response_upper for phrase in ["YES", "VIOLATION", "DETECTED", "FOUND"]):
+    elif medium_high_count > 0:
         return 0.8
-    elif any(phrase in response_upper for phrase in ["LIKELY", "PROBABLY", "APPEARS"]):
+    elif medium_count > 0:
         return 0.6
-    elif any(phrase in response_upper for phrase in ["UNCERTAIN", "NOT CLEARLY", "MAYBE"]):
+    elif medium_low_count > 0:
         return 0.4
-    elif any(phrase in response_upper for phrase in ["NO", "NOT DETECTED", "CLEAN"]):
+    elif low_count > 0:
         return 0.1
     
     return 0.5  # Default confidence
+
+def calculate_nudity_confidence(nudity_result: dict) -> float:
+    """Use actual NudeNet confidence scores when available."""
+    if nudity_result.get("label") == "unsafe":
+        # Try to extract actual confidence from NudeNet violations
+        violations = nudity_result.get("violations", [])
+        if violations:
+            # Use the highest confidence score from detected violations
+            max_confidence = max(violation.get("score", 0.5) for violation in violations)
+            return max_confidence
+        return 0.9  # Fallback for unsafe without detailed scores
+    else:
+        return 0.1  # Safe content has low confidence for violations
 
 def parse_violation_type(response_text: str) -> List[str]:
     """Parse violation types from Gemini response."""
@@ -134,7 +159,7 @@ def run_central_moderation_pipeline(image_path: str) -> Dict[str, Any]:
         pipeline_report["agent_results"]["nudity"] = nudity_result
         pipeline_report["detailed_report"]["nudity"] = nudity_result
         
-        nudity_confidence = 0.9 if nudity_result.get("label") == "unsafe" else 0.1
+        nudity_confidence = calculate_nudity_confidence(nudity_result)
         pipeline_report["confidence_scores"]["nudity"] = nudity_confidence
         
         if nudity_result.get("label") == "unsafe":
@@ -196,7 +221,7 @@ def run_central_moderation_pipeline(image_path: str) -> Dict[str, Any]:
             pipeline_report["violations"].extend(alcohol_types)
         
         # ☠️ Step 7: Hate Symbols Detection (Gemini)
-        print("☠️ Running Hate Symbols Detection...")
+        print(" ☠️ Running Hate Symbols Detection...")
         hate_result = detect_hate_symbols_with_gemini(processed_path)
         pipeline_report["agent_results"]["hate"] = hate_result
         pipeline_report["detailed_report"]["hate"] = hate_result
@@ -209,9 +234,9 @@ def run_central_moderation_pipeline(image_path: str) -> Dict[str, Any]:
         if "YES" in (hate_result.get("response_text") or "").upper():
             pipeline_report["violations"].append("hate_symbols")
         
-        # 🔐 Step 8: PII/Text Detection (Tesseract + Gemini)
+        # 🔐 Step 8: PII/Text Detection (Gemini Vision)
         print("🔐 Running PII/Text Detection...")
-        pii_result = detect_text_pii_with_gemini(processed_path)
+        pii_result = detect_text_pii_with_gemini_vision(processed_path)
         pipeline_report["agent_results"]["pii_text"] = pii_result
         pipeline_report["detailed_report"]["pii_text"] = pii_result
         
@@ -340,7 +365,7 @@ def print_moderation_report(report: Dict[str, Any]) -> None:
     
     print("\n" + "="*80)
 
-def export_json_report(report: Dict[str, Any], output_path: str = None) -> str:
+def export_json_report(report: Dict[str, Any], output_path: str | None = None) -> str:
     """Export the moderation report as JSON."""
     json_report = json.dumps(report, indent=2, default=str)
     

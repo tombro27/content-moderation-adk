@@ -20,3 +20,4 @@ venv/
 .idea/          # PyCharm/IntelliJ IDEA project files
 *.log
 *.swp
+central_pipeline_report_blood.json
