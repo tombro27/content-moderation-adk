@@ -293,6 +293,32 @@ def run_central_moderation_pipeline(image_path: str) -> Dict[str, Any]:
     
     return pipeline_report
 
+def get_confidence_table_reference() -> str:
+    """Get the confidence table reference for output."""
+    return """
+🎯 CONFIDENCE SCORE REFERENCE TABLE
+====================================
+
+| Score Range | Level | Meaning | Keywords/Indicators |
+|-------------|-------|---------|-------------------|
+| **0.9** | **Very High** | Agent is extremely confident in detection | "CLEARLY", "DEFINITELY", "CERTAINLY", "OBVIOUSLY", "UNDOUBTEDLY", "WITHOUT DOUBT", "CONFIRMED", "IDENTIFIED" |
+| **0.8** | **High** | Agent detected violation with high certainty | "YES", "VIOLATION", "DETECTED", "FOUND", "PRESENT", "SHOWS", "CONTAINS", "DISPLAYS" |
+| **0.6** | **Medium-High** | Agent thinks violation is likely | "LIKELY", "PROBABLY", "APPEARS", "SEEMS", "INDICATES", "SUGGESTS", "MIGHT BE" |
+| **0.5** | **Medium** | Agent is uncertain or neutral | No specific confidence indicators found |
+| **0.4** | **Medium-Low** | Agent is uncertain about detection | "UNCERTAIN", "NOT CLEARLY", "MAYBE", "POSSIBLY", "MIGHT", "COULD BE", "UNSURE" |
+| **0.1** | **Low** | Agent found no violations | "NO", "NOT DETECTED", "CLEAN", "SAFE", "NONE FOUND", "ABSENT", "NOT PRESENT" |
+| **0.0** | **Error** | Agent failed to process | Agent error or no response |
+
+📊 CONFIDENCE LEVELS EXPLAINED:
+• **0.9**: Very High - Strong evidence for decision-making
+• **0.8**: High - Reliable detection, can be used for automated decisions  
+• **0.6**: Medium-High - Good evidence, may need review
+• **0.5**: Medium - Neutral evidence, requires human review
+• **0.4**: Medium-Low - Weak evidence, likely false positive
+• **0.1**: Low - Strong evidence of safety
+• **0.0**: Error - No evidence available, manual review required
+"""
+
 def print_moderation_report(report: Dict[str, Any]) -> None:
     """Print a formatted moderation report."""
     
@@ -363,11 +389,41 @@ def print_moderation_report(report: Dict[str, Any]) -> None:
     for agent, confidence in confidence_scores.items():
         print(f"   {agent}: {confidence:.2f}")
     
+    # Add confidence table reference
+    print("\n" + "-"*80)
+    print("📋 CONFIDENCE SCORE REFERENCE")
+    print("-"*80)
+    print(get_confidence_table_reference())
+    
     print("\n" + "="*80)
 
 def export_json_report(report: Dict[str, Any], output_path: str | None = None) -> str:
     """Export the moderation report as JSON."""
-    json_report = json.dumps(report, indent=2, default=str)
+    # Add confidence table reference to the report
+    report_with_reference = report.copy()
+    report_with_reference["confidence_table_reference"] = {
+        "description": "Confidence Score Reference Table",
+        "table": {
+            "0.9": {"level": "Very High", "meaning": "Agent is extremely confident in detection", "keywords": ["CLEARLY", "DEFINITELY", "CERTAINLY", "OBVIOUSLY", "UNDOUBTEDLY", "WITHOUT DOUBT", "CONFIRMED", "IDENTIFIED"]},
+            "0.8": {"level": "High", "meaning": "Agent detected violation with high certainty", "keywords": ["YES", "VIOLATION", "DETECTED", "FOUND", "PRESENT", "SHOWS", "CONTAINS", "DISPLAYS"]},
+            "0.6": {"level": "Medium-High", "meaning": "Agent thinks violation is likely", "keywords": ["LIKELY", "PROBABLY", "APPEARS", "SEEMS", "INDICATES", "SUGGESTS", "MIGHT BE"]},
+            "0.5": {"level": "Medium", "meaning": "Agent is uncertain or neutral", "keywords": ["No specific confidence indicators found"]},
+            "0.4": {"level": "Medium-Low", "meaning": "Agent is uncertain about detection", "keywords": ["UNCERTAIN", "NOT CLEARLY", "MAYBE", "POSSIBLY", "MIGHT", "COULD BE", "UNSURE"]},
+            "0.1": {"level": "Low", "meaning": "Agent found no violations", "keywords": ["NO", "NOT DETECTED", "CLEAN", "SAFE", "NONE FOUND", "ABSENT", "NOT PRESENT"]},
+            "0.0": {"level": "Error", "meaning": "Agent failed to process", "keywords": ["Agent error or no response"]}
+        },
+        "explanation": {
+            "0.9": "Very High - Strong evidence for decision-making",
+            "0.8": "High - Reliable detection, can be used for automated decisions",
+            "0.6": "Medium-High - Good evidence, may need review",
+            "0.5": "Medium - Neutral evidence, requires human review",
+            "0.4": "Medium-Low - Weak evidence, likely false positive",
+            "0.1": "Low - Strong evidence of safety",
+            "0.0": "Error - No evidence available, manual review required"
+        }
+    }
+    
+    json_report = json.dumps(report_with_reference, indent=2, default=str)
     
     if output_path:
         with open(output_path, 'w') as f:

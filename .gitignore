@@ -20,4 +20,8 @@ venv/
 .idea/          # PyCharm/IntelliJ IDEA project files
 *.log
 *.swp
-central_pipeline_report_blood.json
+
+# Ignore moderation report JSONs
+central_pipeline_report_*.json
+report_*.json
+detailed_report_*.json
