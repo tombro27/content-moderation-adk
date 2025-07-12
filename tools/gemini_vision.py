@@ -3,7 +3,8 @@ from PIL import Image
 import google.generativeai as genai
 
 # Load API Key
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "your-api-key-here")
+# GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "your-api-key-here")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyAmVJIpM-eQbVjyx3W0MNhzCq4tMRvwpI4")
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Load Gemini Vision model

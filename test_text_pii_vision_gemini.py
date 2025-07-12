@@ -1,6 +1,6 @@
 from tools.text_pii_vision_gemini import detect_text_pii_with_gemini_vision
 
-image_path = "data/test_images/sample.jpg"
+image_path = "data/test_images/adhaar.png"
 
 result = detect_text_pii_with_gemini_vision(image_path)
 

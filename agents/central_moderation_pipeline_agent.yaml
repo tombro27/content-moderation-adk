@@ -1,0 +1,16 @@
+name: central_moderation_pipeline_agent
+description: >-
+  Central moderation pipeline that runs all individual agents sequentially on each image:
+  Ingestion → Nudity Detection → Nudity Exceptions → Violence Detection → 
+  Drugs Detection → Alcohol/Smoking Detection → Hate Symbols Detection → 
+  PII/Text Detection → QR Code Detection
+tool: tools.central_moderation_pipeline.run_central_moderation_pipeline
+input_spec:
+  image_path: str
+output_spec:
+  status: str
+  final_decision: str
+  violations: list
+  agent_results: dict
+  confidence_scores: dict
+  detailed_report: dict 

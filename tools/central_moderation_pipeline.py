@@ -1,0 +1,352 @@
+import json
+import re
+from typing import Dict, List, Any
+from tools.image_preprocessor import image_preprocessor
+from tools.nudity_detector import detect_nudity
+from tools.nudity_exceptions_detector_gemini import detect_nudity_exceptions_with_gemini
+from tools.violence_detection_gemini import detect_violence_with_gemini
+from tools.drugs_detector_gemini import detect_drugs_with_gemini
+from tools.alcohol_smoke_detector_gemini import detect_alcohol_smoke_with_gemini
+from tools.hate_detector_gemini import detect_hate_symbols_with_gemini
+from tools.text_pii_detector_gemini import detect_text_pii_with_gemini
+from tools.text_pii_vision_gemini import detect_text_pii_with_gemini_vision
+from tools.qr_detector_gemini import detect_qr_code_with_gemini
+
+def extract_confidence_from_response(response_text: str) -> float:
+    """Extract confidence score from Gemini response text."""
+    if not response_text:
+        return 0.0
+    
+    # Look for confidence indicators in the response
+    response_upper = response_text.upper()
+    
+    # High confidence indicators
+    if any(phrase in response_upper for phrase in ["CLEARLY", "DEFINITELY", "CERTAINLY", "OBVIOUSLY"]):
+        return 0.9
+    elif any(phrase in response_upper for phrase in ["YES", "VIOLATION", "DETECTED", "FOUND"]):
+        return 0.8
+    elif any(phrase in response_upper for phrase in ["LIKELY", "PROBABLY", "APPEARS"]):
+        return 0.6
+    elif any(phrase in response_upper for phrase in ["UNCERTAIN", "NOT CLEARLY", "MAYBE"]):
+        return 0.4
+    elif any(phrase in response_upper for phrase in ["NO", "NOT DETECTED", "CLEAN"]):
+        return 0.1
+    
+    return 0.5  # Default confidence
+
+def parse_violation_type(response_text: str) -> List[str]:
+    """Parse violation types from Gemini response."""
+    violations = []
+    if not response_text:
+        return violations
+    
+    response_upper = response_text.upper()
+    
+    # Violence types
+    if any(word in response_upper for word in ["BLOOD", "WOUND", "GORE", "INJURY"]):
+        violations.append("blood/gore")
+    if any(word in response_upper for word in ["WEAPON", "GUN", "KNIFE", "EXPLOSIVE"]):
+        violations.append("weapons")
+    if any(word in response_upper for word in ["CORPSE", "DEAD", "HANGING", "AUTOPSY"]):
+        violations.append("death/corpses")
+    if any(word in response_upper for word in ["SELF-HARM", "CUTTING", "BURNING", "SUICIDAL"]):
+        violations.append("self-harm")
+    if any(word in response_upper for word in ["ABUSE", "TORTURE", "CRUELTY"]):
+        violations.append("abuse/torture")
+    
+    # Drugs types
+    if any(word in response_upper for word in ["DRUG", "PARAPHERNALIA", "SYRINGE", "PIPE"]):
+        violations.append("drugs/paraphernalia")
+    
+    # Alcohol/Smoking types
+    if any(word in response_upper for word in ["ALCOHOL", "BEER", "WINE", "LIQUOR"]):
+        violations.append("alcohol")
+    if any(word in response_upper for word in ["SMOKING", "CIGARETTE", "TOBACCO", "VAPE"]):
+        violations.append("smoking")
+    
+    # Hate types
+    if any(word in response_upper for word in ["HATE", "SYMBOL", "EXTREMIST", "RACIST"]):
+        violations.append("hate symbols")
+    
+    # PII types
+    if any(word in response_upper for word in ["PII", "PERSONAL", "IDENTIFIABLE", "PRIVATE"]):
+        violations.append("personal information")
+    if any(word in response_upper for word in ["THREAT", "ABUSIVE", "HARASSMENT"]):
+        violations.append("threatening/abusive text")
+    
+    # QR types
+    if any(word in response_upper for word in ["QR", "CODE", "BARCODE"]):
+        violations.append("qr codes")
+    
+    return violations
+
+def run_central_moderation_pipeline(image_path: str) -> Dict[str, Any]:
+    """
+    Run comprehensive moderation pipeline on an image.
+    
+    Returns:
+        Dict containing:
+        - status: success/error
+        - final_decision: Accept/Reject/Flag
+        - violations: List of detected violations
+        - agent_results: Raw results from each agent
+        - confidence_scores: Confidence scores for each detection
+        - detailed_report: Comprehensive analysis
+    """
+    
+    pipeline_report = {
+        "status": "success",
+        "image_path": image_path,
+        "final_decision": "Accept",
+        "violations": [],
+        "agent_results": {},
+        "confidence_scores": {},
+        "detailed_report": {
+            "ingestion": {},
+            "nudity": {},
+            "nudity_exceptions": {},
+            "violence": {},
+            "drugs": {},
+            "alcohol_smoking": {},
+            "hate": {},
+            "pii_text": {},
+            "qr_code": {}
+        }
+    }
+    
+    try:
+        # 🧹 Step 1: Ingestion Agent
+        print("🔄 Running Ingestion Agent...")
+        ingestion_result = image_preprocessor(image_path)
+        pipeline_report["agent_results"]["ingestion"] = ingestion_result
+        pipeline_report["detailed_report"]["ingestion"] = ingestion_result
+        
+        if ingestion_result.get("status") != "success":
+            pipeline_report["final_decision"] = "Reject"
+            pipeline_report["violations"].append("image_processing_error")
+            return pipeline_report
+        
+        processed_path = ingestion_result["output_path"]
+        
+        # 🔞 Step 2: Nudity Detection (NudeNet)
+        print("🔞 Running Nudity Detection...")
+        nudity_result = detect_nudity(processed_path)
+        pipeline_report["agent_results"]["nudity"] = nudity_result
+        pipeline_report["detailed_report"]["nudity"] = nudity_result
+        
+        nudity_confidence = 0.9 if nudity_result.get("label") == "unsafe" else 0.1
+        pipeline_report["confidence_scores"]["nudity"] = nudity_confidence
+        
+        if nudity_result.get("label") == "unsafe":
+            pipeline_report["violations"].append("nudity")
+        
+        # 👙 Step 3: Nudity Exception Handler (Gemini)
+        print("👙 Running Nudity Exceptions Detection...")
+        nudity_exception_result = detect_nudity_exceptions_with_gemini(processed_path)
+        pipeline_report["agent_results"]["nudity_exceptions"] = nudity_exception_result
+        pipeline_report["detailed_report"]["nudity_exceptions"] = nudity_exception_result
+        
+        nudity_exception_confidence = extract_confidence_from_response(
+            nudity_exception_result.get("response_text", "")
+        )
+        pipeline_report["confidence_scores"]["nudity_exceptions"] = nudity_exception_confidence
+        
+        # 🔫 Step 4: Violence/Gore Detection (Gemini)
+        print("🔫 Running Violence Detection...")
+        violence_result = detect_violence_with_gemini(processed_path)
+        pipeline_report["agent_results"]["violence"] = violence_result
+        pipeline_report["detailed_report"]["violence"] = violence_result
+        
+        violence_confidence = extract_confidence_from_response(
+            violence_result.get("response_text", "")
+        )
+        pipeline_report["confidence_scores"]["violence"] = violence_confidence
+        
+        if "YES" in (violence_result.get("response_text") or "").upper():
+            violence_types = parse_violation_type(violence_result.get("response_text", ""))
+            pipeline_report["violations"].extend(violence_types)
+        
+        # 🧪 Step 5: Drugs Detection (Gemini)
+        print("🧪 Running Drugs Detection...")
+        drugs_result = detect_drugs_with_gemini(processed_path)
+        pipeline_report["agent_results"]["drugs"] = drugs_result
+        pipeline_report["detailed_report"]["drugs"] = drugs_result
+        
+        drugs_confidence = extract_confidence_from_response(
+            drugs_result.get("response_text", "")
+        )
+        pipeline_report["confidence_scores"]["drugs"] = drugs_confidence
+        
+        if "YES" in (drugs_result.get("response_text") or "").upper():
+            pipeline_report["violations"].append("drugs")
+        
+        # 🍾 Step 6: Alcohol/Smoking Detection (Gemini)
+        print("🍾 Running Alcohol/Smoking Detection...")
+        alcohol_result = detect_alcohol_smoke_with_gemini(processed_path)
+        pipeline_report["agent_results"]["alcohol_smoking"] = alcohol_result
+        pipeline_report["detailed_report"]["alcohol_smoking"] = alcohol_result
+        
+        alcohol_confidence = extract_confidence_from_response(
+            alcohol_result.get("response_text", "")
+        )
+        pipeline_report["confidence_scores"]["alcohol_smoking"] = alcohol_confidence
+        
+        if "YES" in (alcohol_result.get("response_text") or "").upper():
+            alcohol_types = parse_violation_type(alcohol_result.get("response_text", ""))
+            pipeline_report["violations"].extend(alcohol_types)
+        
+        # ☠️ Step 7: Hate Symbols Detection (Gemini)
+        print("☠️ Running Hate Symbols Detection...")
+        hate_result = detect_hate_symbols_with_gemini(processed_path)
+        pipeline_report["agent_results"]["hate"] = hate_result
+        pipeline_report["detailed_report"]["hate"] = hate_result
+        
+        hate_confidence = extract_confidence_from_response(
+            hate_result.get("response_text", "")
+        )
+        pipeline_report["confidence_scores"]["hate"] = hate_confidence
+        
+        if "YES" in (hate_result.get("response_text") or "").upper():
+            pipeline_report["violations"].append("hate_symbols")
+        
+        # 🔐 Step 8: PII/Text Detection (Tesseract + Gemini)
+        print("🔐 Running PII/Text Detection...")
+        pii_result = detect_text_pii_with_gemini(processed_path)
+        pipeline_report["agent_results"]["pii_text"] = pii_result
+        pipeline_report["detailed_report"]["pii_text"] = pii_result
+        
+        pii_confidence = extract_confidence_from_response(
+            pii_result.get("response_text", "")
+        )
+        pipeline_report["confidence_scores"]["pii_text"] = pii_confidence
+        
+        if "YES" in (pii_result.get("response_text") or "").upper():
+            pii_types = parse_violation_type(pii_result.get("response_text", ""))
+            pipeline_report["violations"].extend(pii_types)
+        
+        # 📷 Step 9: QR Code Detection (Gemini)
+        print("📷 Running QR Code Detection...")
+        qr_result = detect_qr_code_with_gemini(processed_path)
+        pipeline_report["agent_results"]["qr_code"] = qr_result
+        pipeline_report["detailed_report"]["qr_code"] = qr_result
+        
+        qr_confidence = extract_confidence_from_response(
+            qr_result.get("response_text", "")
+        )
+        pipeline_report["confidence_scores"]["qr_code"] = qr_confidence
+        
+        if "YES" in (qr_result.get("response_text") or "").upper():
+            pipeline_report["violations"].append("qr_codes")
+        
+        # 🎯 Final Decision Logic
+        pipeline_report["violations"] = list(set(pipeline_report["violations"]))  # Remove duplicates
+        
+        if pipeline_report["violations"]:
+            # Check for high-priority violations
+            high_priority = ["nudity", "blood/gore", "weapons", "death/corpses", "self-harm", "abuse/torture"]
+            medium_priority = ["drugs", "hate_symbols", "threatening/abusive text"]
+            low_priority = ["alcohol", "smoking", "qr_codes", "personal information"]
+            
+            has_high_priority = any(violation in high_priority for violation in pipeline_report["violations"])
+            has_medium_priority = any(violation in medium_priority for violation in pipeline_report["violations"])
+            
+            if has_high_priority:
+                pipeline_report["final_decision"] = "Reject"
+            elif has_medium_priority:
+                pipeline_report["final_decision"] = "Flag"
+            else:
+                pipeline_report["final_decision"] = "Flag"
+        
+        print("✅ Pipeline completed successfully!")
+        
+    except Exception as e:
+        pipeline_report["status"] = "error"
+        pipeline_report["final_decision"] = "Reject"
+        pipeline_report["violations"].append("pipeline_error")
+        pipeline_report["error_message"] = str(e)
+        print(f"❌ Pipeline error: {e}")
+    
+    return pipeline_report
+
+def print_moderation_report(report: Dict[str, Any]) -> None:
+    """Print a formatted moderation report."""
+    
+    print("\n" + "="*80)
+    print("🛡️ CENTRAL MODERATION PIPELINE REPORT")
+    print("="*80)
+    
+    # Basic Info
+    print(f"📁 Image Path: {report.get('image_path')}")
+    print(f"📊 Status: {report.get('status')}")
+    
+    # Final Decision
+    decision = report.get('final_decision', 'Unknown')
+    if decision == "Accept":
+        print(f"✅ Final Decision: {decision}")
+    elif decision == "Reject":
+        print(f"❌ Final Decision: {decision}")
+    else:
+        print(f"⚠️ Final Decision: {decision}")
+    
+    # Violations
+    violations = report.get('violations', [])
+    if violations:
+        print(f"🚨 Detected Violations: {', '.join(violations)}")
+    else:
+        print("✅ No violations detected")
+    
+    print("\n" + "-"*80)
+    print("🔍 DETAILED AGENT RESULTS")
+    print("-"*80)
+    
+    # Agent Results
+    agent_results = report.get('agent_results', {})
+    confidence_scores = report.get('confidence_scores', {})
+    
+    for agent_name, result in agent_results.items():
+        print(f"\n🧩 {agent_name.upper()}")
+        print(f"   Status: {result.get('status', 'N/A')}")
+        
+        # Show confidence if available
+        if agent_name in confidence_scores:
+            confidence = confidence_scores[agent_name]
+            print(f"   Confidence: {confidence:.2f}")
+        
+        # Show key results
+        if agent_name == "nudity":
+            label = result.get('label', 'N/A')
+            print(f"   Label: {label}")
+            if result.get('explanation'):
+                print(f"   Explanation: {result.get('explanation')}")
+        
+        elif agent_name == "ingestion":
+            print(f"   Original Size: {result.get('original_size', 'N/A')}")
+            print(f"   New Size: {result.get('new_size', 'N/A')}")
+            print(f"   Format: {result.get('format', 'N/A')}")
+        
+        else:
+            # For Gemini-based agents
+            response = result.get('response_text', 'N/A')
+            if len(response) > 100:
+                response = response[:100] + "..."
+            print(f"   Response: {response}")
+    
+    print("\n" + "-"*80)
+    print("📈 CONFIDENCE SCORES")
+    print("-"*80)
+    
+    for agent, confidence in confidence_scores.items():
+        print(f"   {agent}: {confidence:.2f}")
+    
+    print("\n" + "="*80)
+
+def export_json_report(report: Dict[str, Any], output_path: str = None) -> str:
+    """Export the moderation report as JSON."""
+    json_report = json.dumps(report, indent=2, default=str)
+    
+    if output_path:
+        with open(output_path, 'w') as f:
+            f.write(json_report)
+        print(f"📄 Report exported to: {output_path}")
+    
+    return json_report 
